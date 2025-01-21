@@ -6,7 +6,7 @@ using UnityEngine;
 
 [AddComponentMenu("GameObject/Tags")]
 [HelpURL("")]
-public class Tags : MonoBehaviour
+public class Tags : MonoBehaviour, ITags
 {
     [SerializeField] private List<TagScriptableObject> tags;
 

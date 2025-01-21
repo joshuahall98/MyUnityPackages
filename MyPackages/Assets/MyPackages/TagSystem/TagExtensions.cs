@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 public static class TagExtensions
@@ -7,7 +8,7 @@ public static class TagExtensions
     // Automatically filled on Awake by Tags component.
     private static readonly Dictionary<TagScriptableObject, HashSet<GameObject>> allObjectsWithTag = new Dictionary<TagScriptableObject, HashSet<GameObject>>();
     // Tags component is cached per-instance when we call one of the HasTag methods.
-    private static readonly Dictionary<GameObject, Tags> cachedTags = new Dictionary<GameObject, Tags>();
+    private static readonly ConditionalWeakTable<GameObject, ITags> cachedTags = new();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Init()
@@ -87,15 +88,18 @@ public static class TagExtensions
     }
     public static bool HasTag(this GameObject gameObject, TagScriptableObject tag)
     {
-        var passed = false;
-
         if (!TryGetTagComponent(gameObject, out var component))
             return false;
 
-        if (component.GetTags().Contains(tag))
-            passed = true;
+        var compareTags = component.GetTags();
+        if (compareTags.Contains(tag))
+        {
+            Debug.Log($"Tag {tag.name} found on {gameObject.name}.");
+            return true;
+        }
 
-        return passed;
+        Debug.Log($"Tag {tag.name} NOT found on {gameObject.name}.");
+        return false;
     }
 
     public static bool HasOnlyTag(this Component instance, TagScriptableObject tag)
@@ -104,19 +108,18 @@ public static class TagExtensions
     }
     public static bool HasOnlyTag(this GameObject gameObject, TagScriptableObject tag)
     {
-        var passed = false;
-
         if (!TryGetTagComponent(gameObject, out var component))
             return false;
 
         var compareTags = component.GetTags();
+
         if (compareTags.Count > 1)
             return false;
 
-        if (compareTags[0] == tag)
-            passed = true;
+        if (compareTags.Count == 0 || compareTags[0] != tag)
+            return false;
 
-        return passed;
+        return true;
     }
 
     public static bool HasAnyTag(this Component instance, params TagScriptableObject[] tags)
@@ -125,20 +128,21 @@ public static class TagExtensions
     }
     public static bool HasAnyTag(this GameObject gameObject, params TagScriptableObject[] tags)
     {
-        var passed = false;
-
-        if (!TryGetTagComponent(gameObject, out var component))
+        var compareTags = gameObject.GetComponent<ITags>()?.GetTags();
+        if (compareTags == null || compareTags.Count == 0)
+        {
             return false;
-
-        var compareTags = component.GetTags();
+        }
 
         foreach (var tag in tags)
         {
             if (compareTags.Contains(tag))
-                passed = true;
+            {
+                return true;
+            }
         }
 
-        return passed;
+        return false;
     }
 
     public static bool HasAllTags(this Component instance, params TagScriptableObject[] tags)
@@ -147,20 +151,17 @@ public static class TagExtensions
     }
     public static bool HasAllTags(this GameObject gameObject, params TagScriptableObject[] tags)
     {
-        var passed = true;
-
         if (!TryGetTagComponent(gameObject, out var component))
             return false;
 
         var compareTags = component.GetTags();
-
         foreach (var tag in tags)
         {
             if (!compareTags.Contains(tag))
-                passed = false;
+                return false; // Immediately return false if any tag is missing
         }
 
-        return passed;
+        return true; // All tags are present
     }
     #endregion
 
@@ -189,10 +190,27 @@ public static class TagExtensions
             objectsList = new HashSet<GameObject>();
             allObjectsWithTag.Add(tag, objectsList);
         }
-        objectsList.Add(gameObject);
+
+        if (!objectsList.Contains(gameObject))
+        {
+            objectsList.Add(gameObject);
+            //Debug.Log($"Registered '{gameObject.name}' with global tag '{tag.name}'.");
+        }
     }
 
-    private static bool TryGetTagComponent(GameObject gameObject, out Tags component)
+    internal static void UnregisterGameObjectWithTag(this GameObject gameObject, TagScriptableObject tag)
+    {
+        if (allObjectsWithTag.TryGetValue(tag, out var objectsList))
+        {
+            if (objectsList.Contains(gameObject))
+            {
+                objectsList.Remove(gameObject);
+                // Debug.Log($"{tag} has been removed from {gameObject}");
+            }
+        }
+    }
+
+    private static bool TryGetTagComponent(GameObject gameObject, out ITags component)
     {
         if (!cachedTags.TryGetValue(gameObject, out component))
         {
