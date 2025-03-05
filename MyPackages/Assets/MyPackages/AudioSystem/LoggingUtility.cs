@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-#if UNITY_EDITOR
+
 public class LoggingUtility
 {
 
@@ -11,6 +11,8 @@ public class LoggingUtility
     /// </summary>
     public void LogCleanedUpStackTrace(string MessageToLogWithTrace, string fullStackTrace)
     {
+#if UNITY_EDITOR
+
         string[] stackLines = fullStackTrace.Split('\n'); // Split stack trace into lines
         string scriptStackTrace = "";
 
@@ -27,6 +29,6 @@ public class LoggingUtility
         }
 
         UnityEngine.Debug.Log($"{MessageToLogWithTrace}.\n{scriptStackTrace}");
+#endif
     }
 }
-#endif

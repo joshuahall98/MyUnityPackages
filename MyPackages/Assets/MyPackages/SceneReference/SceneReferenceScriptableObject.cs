@@ -1,13 +1,15 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "SceneReference", menuName = "ScriptableObject/SceneReference")]
 public class SceneReferenceScriptableObject : ScriptableObject
 {
-    [SerializeField] private SceneAsset sceneAsset; // Editor-only reference
     [SerializeField, HideInInspector] private string scenePath; // Runtime path for the scene
+
+#if UNITY_EDITOR
+    [SerializeField] private SceneAsset sceneAsset; // Editor-only reference
+
+
 
     private void OnValidate()
     {
@@ -17,6 +19,7 @@ public class SceneReferenceScriptableObject : ScriptableObject
             scenePath = AssetDatabase.GetAssetPath(sceneAsset);
         }
     }
+#endif
 
     public string GetSceneName()
     {
