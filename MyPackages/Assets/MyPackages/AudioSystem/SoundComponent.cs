@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,28 +9,50 @@ public class SoundComponent : MonoBehaviour, ISoundComponent
 
     UniqueSoundID UUID = new UniqueSoundID();
 
-    public void PlaySound(AudioScriptableObject audioScriptableObject, Vector3 location, UnityAction fireEventWhenSoundFinished = null)
+    public void PlaySound(SoundData data, Action onEndOfClip = null)
     {
-        AudioManager.AudioManagerInstance.PlaySound(audioScriptableObject, UUID, location, fireEventWhenSoundFinished);
+        if (data.AudioScriptableObject == null) return; //fails quitely if empty
+
+        StartCoroutine(DelayTimer(data, onEndOfClip));
     }
 
-    public void PlaySound(AudioScriptableObject audioScriptableObject, Transform transformLocation, bool followTransform = false, UnityAction fireEventWhenSoundFinished = null)
+    private IEnumerator DelayTimer(SoundData data, Action onEndOfClip = null)
     {
-        AudioManager.AudioManagerInstance.PlaySound(audioScriptableObject, UUID, transformLocation, followTransform, fireEventWhenSoundFinished);
+        yield return new WaitForSeconds(data.Delay);
+
+        var playLocation = data.PlayLocation;
+
+        if(playLocation == null)
+        {
+            playLocation = transform;
+        }
+
+        AdvancedAudioSystemManager.Instance.PlaySound(data.AudioScriptableObject, UUID, playLocation, data.FollowTransform, onEndOfClip);
     }
 
-    public void StopSound(AudioScriptableObject audioScriptableObject)
+    public bool IsSoundPlaying(SoundData data)
     {
-        AudioManager.AudioManagerInstance.StopSound(audioScriptableObject, UUID);
+        return AdvancedAudioSystemManager.Instance.IsSoundPlaying(data.AudioScriptableObject, UUID);
     }
 
-    public bool IsSoundPlaying(AudioScriptableObject audioScriptableObject)
+    public void StopSound(SoundData data)
     {
-        return AudioManager.AudioManagerInstance.IsSoundPlaying(audioScriptableObject, UUID);
+        if (data.AudioScriptableObject == null) return; //fails quitely if empty
+
+        AdvancedAudioSystemManager.Instance.StopSound(data.AudioScriptableObject, UUID);
     }
 
-    public void DynamicVolumePrioritySystem(AudioScriptableObject audioScriptableObject, bool systemIsActive)
+    public void AdjustVolume(SoundData data, float targetVolume, float duration = 0f)
     {
-        AudioManager.AudioManagerInstance.DynamicVolumePrioritySystem(audioScriptableObject, systemIsActive);
+        if(data.AudioScriptableObject == null) return; //fails quitely if empty
+
+        AdvancedAudioSystemManager.Instance.AdjustVolume(data.AudioScriptableObject, UUID, targetVolume, duration);
+    }
+
+    public void AdjustPitch(SoundData data, float targetPitch, float duration = 0f)
+    {
+        if (data.AudioScriptableObject == null) return; //fails quitely if empty
+
+        AdvancedAudioSystemManager.Instance.AdjustPitch(data.AudioScriptableObject, UUID, targetPitch, duration);
     }
 }

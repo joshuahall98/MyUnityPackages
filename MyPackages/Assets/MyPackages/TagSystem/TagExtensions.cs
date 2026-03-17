@@ -94,11 +94,11 @@ public static class TagExtensions
         var compareTags = component.GetTags();
         if (compareTags.Contains(tag))
         {
-            Debug.Log($"Tag {tag.name} found on {gameObject.name}.");
+            //Debug.Log($"Tag {tag.name} found on {gameObject.name}.");
             return true;
         }
 
-        Debug.Log($"Tag {tag.name} NOT found on {gameObject.name}.");
+      //  Debug.Log($"Tag {tag.name} NOT found on {gameObject.name}.");
         return false;
     }
 

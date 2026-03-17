@@ -78,7 +78,7 @@ public class AudioScriptableObjectEditor : Editor
         }
 
         // Draw the custom curve field if the mode is custom
-        if (audioScriptableObject.volumeRollOffMode == AudioRolloffMode.Custom)
+        if (audioScriptableObject.VolumeRollOffMode == AudioRolloffMode.Custom)
         {
 
             Rect bbox = new Rect(0, 0, maxDistance.floatValue, 1);

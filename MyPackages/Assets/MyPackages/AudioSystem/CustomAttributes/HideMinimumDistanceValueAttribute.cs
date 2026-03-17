@@ -26,7 +26,7 @@ public class HideMinimumDistanceValueDrawer : PropertyDrawer
 
 
         // Get the enum value from the serialized property
-        if (component.volumeRollOffMode == attr.rolloffMode)
+        if (component.VolumeRollOffMode == attr.rolloffMode)
             return; // Exit if enum value doesn't match
 
         // Otherwise, draw the property as usual

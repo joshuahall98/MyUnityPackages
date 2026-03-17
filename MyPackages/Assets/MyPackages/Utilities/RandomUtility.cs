@@ -8,6 +8,7 @@ using UnityEngine;
 [System.Serializable]
 public class ObjectPool<T>
 {
+
     public T obj;
     [Range(0, 100), Tooltip("When calculating the liklihood of an object appearing, it adds up all the weights and converts all amounts into perecentages of the max number")]
     public int weight = 100;

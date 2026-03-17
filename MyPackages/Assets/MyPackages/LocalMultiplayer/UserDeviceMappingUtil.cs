@@ -10,29 +10,54 @@ public interface IGeneratedInputActionAsset
     public IInputActionCollection2 CreateNewGeneratedInputActionAsset();
 }
 
-public readonly struct InputActionAssetAndUser
+public readonly struct InputActionAssetAndUserData
 {
     public InputActionAsset UserInputActions { get; }
 
-    public InputUser User { get; }
+    public InputUserData UserData { get; }
 
-    public InputActionAssetAndUser(InputActionAsset userInputActions, InputUser user)
+    public InputActionAssetAndUserData(InputActionAsset userInputActions, InputUserData userData)
     {
         UserInputActions = userInputActions;
-        User = user; 
+        UserData = userData;
     }
 }
 
-public readonly struct InputActionCollectionAndUser
+public readonly struct InputActionCollectionAndUserData
 {
     public IInputActionCollection2 UserInputActions { get; }
 
-    public InputUser User { get; }
+    public InputUserData UserData { get; }
 
-    public InputActionCollectionAndUser(IInputActionCollection2 userInputActions, InputUser user)
+    public InputActionCollectionAndUserData(IInputActionCollection2 userInputActions, InputUserData userData)
     {
         UserInputActions = userInputActions;
-        User = user;
+        UserData = userData;
+    }
+}
+
+public class InputUserData
+{
+    /// <summary>
+    /// Dynamic index representing the current order of users (reorders when someone leaves).
+    /// </summary>
+    public int QueueIndex { get; }
+
+    /// <summary>
+    /// Fixed player slot (e.g., Player 1, Player 2, etc.), reused when empty.
+    /// </summary>
+    public int SlotIndex { get; }
+
+    public int Id { get; }
+
+    public InputDevice Device { get; }
+
+    public InputUserData(int queueIndex, int slotIndex, int id, InputDevice device)
+    {
+        QueueIndex = queueIndex;
+        SlotIndex = slotIndex;
+        Id = id;
+        Device = device;
     }
 }
 
@@ -40,13 +65,15 @@ public readonly struct InputActionCollectionAndUser
 
 //NOTE: I have only tested this with KBM and Gamepads, it is unknown how many devices this will work for.
 public static class UserDeviceMappingUtil
-{ 
-    static List<InputDevice> inputDevicesPairedWithUsers = new List<InputDevice>();
+{
+    static List<InputDevice> inputDevicesPairedWithUsers = new();
+
+    static Dictionary<int, int> userSlots = new();
 
     /// <summary>
     /// This method creates a new user, binds the user to the most recently used device and then assigns a unique input action asset to that user.
     /// </summary>
-    public static bool TryCreateUser(InputDevice device, InputActionAsset inputActionAsset, out InputActionAssetAndUser inputActionsAndUser)
+    public static bool TryCreateUser(InputDevice device, InputActionAsset inputActionAsset, out InputActionAssetAndUserData inputActionsAndUser)
     {
         var inputDevices = new List<InputDevice>();
 
@@ -74,7 +101,9 @@ public static class UserDeviceMappingUtil
                 
         userInputActions.Enable();
 
-        inputActionsAndUser = new(userInputActions, user);
+        var slot = AssignUserSlot((int)user.id);
+
+        inputActionsAndUser = new(userInputActions, new InputUserData(user.index, slot, (int)user.id, device));
         
         return true;
     }
@@ -83,7 +112,7 @@ public static class UserDeviceMappingUtil
     /// <summary>
     /// This method creates a new user, binds the user to the most recently used device and then accepts a list of input actions to bind to.
     /// </summary>
-    public static bool TryCreateUser(InputDevice device, IGeneratedInputActionAsset generatedInputActionAsset, out InputActionCollectionAndUser inputActionsAndUser)
+    public static bool TryCreateUser(InputDevice device, IGeneratedInputActionAsset generatedInputActionAsset, out InputActionCollectionAndUserData inputActionsAndUser)
     {
         var inputDevices = new List<InputDevice>();
 
@@ -114,7 +143,9 @@ public static class UserDeviceMappingUtil
 
         userInputActions.Enable();
 
-        inputActionsAndUser = new(userInputActions, user);
+        var slot = AssignUserSlot((int)user.id);
+
+        inputActionsAndUser = new(userInputActions, new InputUserData(user.index, slot, (int)user.id, device));
 
         return true;
     }
@@ -122,25 +153,29 @@ public static class UserDeviceMappingUtil
     /// <summary>
     /// Delete the paired user of the most recently used device.
     /// </summary>
-    public static bool TryDeleteUser(InputDevice device, out int userIndex)
+    public static bool TryDeleteUser(InputDevice device, out InputUserData userData)
     {
         var userToRemove = InputUser.FindUserPairedToDevice(device).Value;
-
-        userIndex = userToRemove.index;
 
         if (userToRemove == null)
         {
             Debug.LogError($"No paired user was found for the following device: {device}");
-            userIndex = -1;
+            userData = null;
             return false;
         }
 
         if (!userToRemove.valid)
         {
             Debug.LogError($"The user paired with the device {device} is invalid.");
-            userIndex = -1;
+            userData = null;
             return false;
         }
+
+        var slot = userSlots.FirstOrDefault(x => x.Value == (int)userToRemove.id).Key;
+
+        userData = new InputUserData(userToRemove.index, slot, (int)userToRemove.id, device);
+
+        userSlots[slot] = -1;
 
         userToRemove.actions.Disable();
         userToRemove.UnpairDevicesAndRemoveUser();
@@ -189,6 +224,38 @@ public static class UserDeviceMappingUtil
         }
 
         inputDevicesPairedWithUsers.Clear();
+        userSlots.Clear();
+    }
+
+    /// <summary>
+    /// Returns true if device is paired with user.
+    /// </summary>
+    public static bool IsDevicePairedWithUser(InputDevice device)
+    {
+        return inputDevicesPairedWithUsers.Contains(device);
+    }
+
+    
+    /// <summary>
+    /// Assign a user to a user slot.
+    /// </summary>
+    private static int AssignUserSlot(int newUserId)
+    {
+        // Look for an empty slot
+        foreach (var kvp in userSlots)
+        {
+            if (kvp.Value == -1)
+            {
+                userSlots[kvp.Key] = newUserId;
+                return kvp.Key;
+            }
+        }
+
+        // No empty slot found — create a new one
+        int newSlot = userSlots.Count;
+        userSlots[newSlot] = newUserId;
+
+        return newSlot;
     }
 
     /// <summary>
